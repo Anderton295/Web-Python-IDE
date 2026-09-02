@@ -1,0 +1,7 @@
+{
+  "name": "Python IDE & Turtle Studio",
+  "description": "Interactive Python editor and runner with Turtle graphics, tab lines, autocomplete, multi-file sidebar, and intelligent error diagnostics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
