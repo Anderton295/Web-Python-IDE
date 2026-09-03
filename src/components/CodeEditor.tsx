@@ -12,7 +12,8 @@ import {
   Download,
   ChevronDown,
   FileSpreadsheet,
-  ExternalLink
+  ExternalLink,
+  Square
 } from 'lucide-react';
 import { ProjectFile, ErrorInfo } from '../types';
 import { registerPythonAutocomplete } from '../services/autocomplete';
@@ -22,6 +23,7 @@ interface CodeEditorProps {
   file: ProjectFile;
   onChange: (value: string) => void;
   onRun: () => void;
+  onStop?: () => void;
   isRunning: boolean;
   errorInfo?: ErrorInfo;
   onJumpToLine?: (line: number) => void;
@@ -32,6 +34,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   file,
   onChange,
   onRun,
+  onStop,
   isRunning,
   errorInfo,
   onNotify,
@@ -165,21 +168,21 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           </span>
         </div>
 
-        {/* Toolbar buttons */}
+        {/* Toolbar buttons with unified h-7 height */}
         <div className="flex items-center gap-2">
           {/* Font sizing */}
-          <div className="hidden sm:flex items-center bg-[#2d2d2d] rounded-xs border border-[#3e3e42] p-0.5 text-xs text-[#cccccc]">
+          <div className="hidden sm:flex items-center h-7 bg-[#2d2d2d] rounded-xs border border-[#3e3e42] px-1 text-xs text-[#cccccc]">
             <button
               onClick={() => setFontSize((s) => Math.max(11, s - 1))}
-              className="p-1 hover:text-white rounded-xs"
+              className="h-full px-1 flex items-center justify-center hover:text-white rounded-xs transition-colors"
               title="Decrease font size"
             >
               <ZoomOut className="w-3.5 h-3.5" />
             </button>
-            <span className="px-1.5 text-[11px] font-mono text-[#858585]">{fontSize}px</span>
+            <span className="px-1.5 text-[11px] font-mono text-[#858585] select-none">{fontSize}px</span>
             <button
               onClick={() => setFontSize((s) => Math.min(22, s + 1))}
-              className="p-1 hover:text-white rounded-xs"
+              className="h-full px-1 flex items-center justify-center hover:text-white rounded-xs transition-colors"
               title="Increase font size"
             >
               <ZoomIn className="w-3.5 h-3.5" />
@@ -189,7 +192,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           {/* Copy code */}
           <button
             onClick={handleCopyCode}
-            className="p-1 rounded-xs bg-[#2d2d2d] hover:bg-[#37373d] text-[#cccccc] text-xs flex items-center gap-1 transition-colors border border-[#3e3e42]"
+            className="h-7 px-2.5 rounded-xs bg-[#2d2d2d] hover:bg-[#37373d] text-[#cccccc] text-xs flex items-center gap-1.5 transition-colors border border-[#3e3e42]"
             title="Copy code to clipboard"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-[#4ec9b0]" /> : <Copy className="w-3.5 h-3.5" />}
@@ -197,10 +200,10 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           </button>
 
           {/* Save / Export Action (Default is Save as .txt) */}
-          <div ref={dropdownRef} className="relative flex items-center">
+          <div ref={dropdownRef} className="relative flex items-center h-7">
             <button
               onClick={handleSaveTxt}
-              className="px-2.5 py-1 rounded-l-xs bg-[#2d2d2d] hover:bg-[#37373d] text-[#cccccc] hover:text-white text-xs flex items-center gap-1.5 transition-colors border border-r-0 border-[#3e3e42]"
+              className="h-7 px-2.5 rounded-l-xs bg-[#2d2d2d] hover:bg-[#37373d] text-[#cccccc] hover:text-white text-xs flex items-center gap-1.5 transition-colors border border-r-0 border-[#3e3e42]"
               title="Save as .txt (Default download format - Ctrl+S)"
             >
               <Download className="w-3.5 h-3.5 text-[#3776ab]" />
@@ -208,7 +211,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             </button>
             <button
               onClick={() => setShowSaveDropdown(!showSaveDropdown)}
-              className="px-1.5 py-1 rounded-r-xs bg-[#2d2d2d] hover:bg-[#37373d] text-[#858585] hover:text-white text-xs flex items-center transition-colors border border-[#3e3e42]"
+              className="h-7 px-1.5 rounded-r-xs bg-[#2d2d2d] hover:bg-[#37373d] text-[#858585] hover:text-white text-xs flex items-center justify-center transition-colors border border-[#3e3e42]"
               title="Export options (Docs, Google Docs, Python)"
             >
               <ChevronDown className="w-3 h-3" />
@@ -266,14 +269,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             )}
           </div>
 
-          {/* Run Code Button */}
+          {/* Run Code Button (h-7 unified height) */}
           <button
             id="run-python-button"
             onClick={onRun}
             disabled={isRunning}
-            className={`px-3 py-1 rounded-xs font-medium text-xs flex items-center gap-1.5 transition-all shadow-xs ${
+            className={`h-7 px-3 rounded-xs font-medium text-xs flex items-center gap-1.5 transition-all shadow-xs ${
               isRunning
-                ? 'bg-[#d29922] text-white cursor-wait'
+                ? 'bg-[#d29922] text-white cursor-wait opacity-80'
                 : 'bg-[#2ea043] hover:bg-[#2c974b] text-white active:scale-95'
             }`}
             title="Run Python Script (Ctrl + Enter)"
@@ -287,12 +290,28 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               <>
                 <Play className="w-3.5 h-3.5 fill-current" />
                 <span>Run</span>
-                <kbd className="hidden lg:inline text-[10px] bg-[#238636] px-1 py-0.2 rounded-xs text-[#ffffff] font-mono">
+                <kbd className="hidden lg:inline text-[10px] bg-[#238636] px-1 py-0.5 rounded-xs text-[#ffffff] font-mono leading-none">
                   Ctrl+↵
                 </kbd>
               </>
             )}
           </button>
+
+          {/* Stop Code Button (h-7 unified height) */}
+          {isRunning && onStop && (
+            <button
+              id="stop-python-button"
+              onClick={onStop}
+              className="h-7 px-3 rounded-xs font-medium text-xs flex items-center gap-1.5 transition-all shadow-xs bg-[#da3633] hover:bg-[#b62324] text-white active:scale-95 animate-pulse"
+              title="Stop execution immediately (Ctrl+C / Esc)"
+            >
+              <Square className="w-3 h-3 fill-current" />
+              <span>Stop</span>
+              <kbd className="hidden lg:inline text-[10px] bg-[#b62324] px-1 py-0.5 rounded-xs text-[#ffffff] font-mono leading-none">
+                Esc
+              </kbd>
+            </button>
+          )}
         </div>
       </div>
 

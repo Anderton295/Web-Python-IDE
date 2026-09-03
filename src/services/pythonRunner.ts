@@ -1,5 +1,6 @@
 import { OutputMessage, ErrorInfo } from '../types';
 import { analyzePythonError } from './errorAnalyzer';
+import { setupGCSELibraries } from './gcseLibraries';
 
 export interface RunOptions {
   code: string;
@@ -14,8 +15,40 @@ export interface RunOptions {
 
 export interface RunResult {
   success: boolean;
+  stopped?: boolean;
   error?: ErrorInfo;
   executionTimeMs: number;
+}
+
+// Active execution control state for interrupts
+interface ActiveRunControl {
+  isInterrupted: boolean;
+  turtleTargetId: string;
+  cancelInputPrompt?: () => void;
+}
+
+let currentRunControl: ActiveRunControl | null = null;
+
+// Stop running Python code immediately
+export function stopPythonExecution(): void {
+  if (currentRunControl) {
+    currentRunControl.isInterrupted = true;
+    if (typeof currentRunControl.cancelInputPrompt === 'function') {
+      try {
+        currentRunControl.cancelInputPrompt();
+      } catch (_) {}
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    const w = window as any;
+    if (w.Sk) {
+      w.Sk.hardInterrupt = true;
+    }
+  }
+
+  // Immediately stop and clear any active turtle animations
+  resetTurtleEnvironment(currentRunControl?.turtleTargetId || 'turtle-canvas-container');
 }
 
 // Reset turtle environment, animation loops, and Skulpt turtleInstance cache
@@ -53,6 +86,8 @@ export function resetTurtleEnvironment(turtleTargetId: string = 'turtle-canvas-c
     while (targetElement.firstChild) {
       targetElement.removeChild(targetElement.firstChild);
     }
+    // Restore default container styling
+    targetElement.style.backgroundColor = '';
   }
 }
 
@@ -116,6 +151,23 @@ export async function executePythonCode(options: RunOptions): Promise<RunResult>
 
   const Sk = (window as any).Sk;
 
+  // Initialize active run control for stop button interrupts
+  let cancelInputPromise: (() => void) | undefined;
+  const activeControl: ActiveRunControl = {
+    isInterrupted: false,
+    turtleTargetId,
+    cancelInputPrompt: () => {
+      if (cancelInputPromise) {
+        cancelInputPromise();
+      }
+    },
+  };
+  currentRunControl = activeControl;
+  Sk.hardInterrupt = false;
+
+  // Setup GCSE Computer Science Libraries & patch Turtle module
+  setupGCSELibraries(Sk, turtleTargetId);
+
   // Detect if code uses turtle
   const usesTurtle = /import\s+turtle|from\s+turtle\s+import/i.test(code);
   if (usesTurtle) {
@@ -127,7 +179,7 @@ export async function executePythonCode(options: RunOptions): Promise<RunResult>
   // Always reset turtle state cleanly before executing to prevent ghost animations or corrupted module caches
   resetTurtleEnvironment(turtleTargetId);
 
-  // Configure Skulpt
+  // Configure Skulpt with interrupt hooks and responsive yields
   Sk.pre = 'output';
   Sk.configure({
     output: (text: string) => {
@@ -139,14 +191,38 @@ export async function executePythonCode(options: RunOptions): Promise<RunResult>
       });
     },
     read: builtinRead,
+    killableWhile: true,
+    killableFor: true,
+    yieldLimit: 20,
+    breakpoints: () => {
+      if (activeControl.isInterrupted || Sk.hardInterrupt) {
+        throw new Error('Program stopped by user');
+      }
+      return false;
+    },
     inputfun: async (promptText: string) => {
+      if (activeControl.isInterrupted) {
+        throw new Error('Program stopped by user');
+      }
+
       onOutput({
         id: Math.random().toString(36).substring(2, 9),
         type: 'input-prompt',
         text: promptText,
         timestamp: new Date().toLocaleTimeString(),
       });
-      const userInput = await onRequestInput(promptText);
+
+      const inputPromise = new Promise<string>((resolve, reject) => {
+        cancelInputPromise = () => {
+          reject(new Error('Program stopped by user'));
+        };
+        onRequestInput(promptText)
+          .then((val) => resolve(val))
+          .catch((err) => reject(err));
+      });
+
+      const userInput = await inputPromise;
+
       onOutput({
         id: Math.random().toString(36).substring(2, 9),
         type: 'input-echo',
@@ -185,6 +261,22 @@ export async function executePythonCode(options: RunOptions): Promise<RunResult>
   } catch (err: any) {
     const elapsed = Math.round(performance.now() - startTime);
     const rawError = err ? (err.toString ? err.toString() : String(err)) : 'Unknown Python error';
+
+    // Handle user stop/interrupt without showing syntax error modals
+    if (activeControl.isInterrupted || rawError.includes('Program stopped by user')) {
+      onOutput({
+        id: Math.random().toString(36).substring(2, 9),
+        type: 'system',
+        text: '\n🛑 Program execution stopped by user.\n',
+        timestamp: new Date().toLocaleTimeString(),
+      });
+
+      return {
+        success: false,
+        stopped: true,
+        executionTimeMs: elapsed,
+      };
+    }
     
     // Parse error & generate intelligent suggestions
     const errorInfo = analyzePythonError(rawError, code);
@@ -202,5 +294,9 @@ export async function executePythonCode(options: RunOptions): Promise<RunResult>
       error: errorInfo,
       executionTimeMs: elapsed,
     };
+  } finally {
+    if (currentRunControl === activeControl) {
+      currentRunControl = null;
+    }
   }
 }

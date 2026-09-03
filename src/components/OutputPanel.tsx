@@ -19,7 +19,8 @@ import {
   ChevronUp,
   Maximize,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  Square
 } from 'lucide-react';
 import { OutputMessage, ErrorInfo, ViewMode } from '../types';
 
@@ -29,6 +30,7 @@ interface OutputPanelProps {
   onClearOutput: () => void;
   onApplyFix?: (newCode: string) => void;
   isRunning: boolean;
+  onStop?: () => void;
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
   hasTurtle: boolean;
@@ -45,6 +47,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
   onClearOutput,
   onApplyFix,
   isRunning,
+  onStop,
   viewMode,
   onViewModeChange,
   hasTurtle,
@@ -182,11 +185,11 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
     <div className="h-full flex flex-col bg-[#1e1e1e] text-[#cccccc]">
       {/* Top Header Bar */}
       <div className="h-10 bg-[#252526] border-b border-[#333333] px-3 flex items-center justify-between shrink-0">
-        {/* View Mode Switcher */}
+        {/* View Mode Switcher (Unified h-7 height) */}
         <div className="flex items-center bg-[#1e1e1e] rounded-xs p-0.5 border border-[#333333]">
           <button
             onClick={() => onViewModeChange('both')}
-            className={`px-2.5 py-1 rounded-xs text-xs font-medium flex items-center gap-1.5 transition-colors ${
+            className={`h-7 px-2.5 rounded-xs text-xs font-medium flex items-center gap-1.5 transition-colors ${
               viewMode === 'both'
                 ? 'bg-[#0e639c] text-white shadow-xs'
                 : 'text-[#858585] hover:text-[#cccccc] hover:bg-[#2a2d2e]'
@@ -198,7 +201,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
           </button>
           <button
             onClick={() => onViewModeChange('console')}
-            className={`px-2.5 py-1 rounded-xs text-xs font-medium flex items-center gap-1.5 transition-colors ${
+            className={`h-7 px-2.5 rounded-xs text-xs font-medium flex items-center gap-1.5 transition-colors ${
               viewMode === 'console'
                 ? 'bg-[#0e639c] text-white shadow-xs'
                 : 'text-[#858585] hover:text-[#cccccc] hover:bg-[#2a2d2e]'
@@ -210,7 +213,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
           </button>
           <button
             onClick={() => onViewModeChange('turtle')}
-            className={`px-2.5 py-1 rounded-xs text-xs font-medium flex items-center gap-1.5 transition-colors ${
+            className={`h-7 px-2.5 rounded-xs text-xs font-medium flex items-center gap-1.5 transition-colors ${
               viewMode === 'turtle'
                 ? 'bg-[#0e639c] text-white shadow-xs'
                 : 'text-[#858585] hover:text-[#cccccc] hover:bg-[#2a2d2e]'
@@ -223,28 +226,41 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
           </button>
         </div>
 
-        {/* Execution & Action buttons */}
+        {/* Execution & Action buttons (Unified h-7 height) */}
         <div className="flex items-center gap-2">
+          {isRunning && onStop && (
+            <button
+              onClick={onStop}
+              className="h-7 px-2.5 rounded-xs bg-[#da3633] hover:bg-[#b62324] text-white text-xs font-medium flex items-center gap-1.5 transition-colors shadow-xs animate-pulse"
+              title="Stop Python script execution immediately"
+            >
+              <Square className="w-3 h-3 fill-current" />
+              <span>Stop</span>
+            </button>
+          )}
+
           {executionTime !== undefined && (
-            <span className="text-[11px] font-mono text-[#4ec9b0] bg-[#1e2e25] border border-[#234b35] px-2 py-0.5 rounded-xs">
+            <span className="h-7 text-[11px] font-mono text-[#4ec9b0] bg-[#1e2e25] border border-[#234b35] px-2 flex items-center rounded-xs">
               {executionTime}ms
             </span>
           )}
 
           <button
             onClick={handleCopyOutput}
-            className="p-1 rounded-xs bg-[#2d2d2d] hover:bg-[#383838] text-[#858585] hover:text-[#cccccc] text-xs flex items-center gap-1 transition-colors border border-[#3e3e42]"
+            className="h-7 px-2.5 rounded-xs bg-[#2d2d2d] hover:bg-[#383838] text-[#858585] hover:text-[#cccccc] text-xs flex items-center gap-1.5 transition-colors border border-[#3e3e42]"
             title="Copy console output"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-[#4ec9b0]" /> : <Copy className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline text-[11px]">{copied ? 'Copied' : 'Copy'}</span>
           </button>
 
           <button
             onClick={onClearOutput}
-            className="p-1 rounded-xs bg-[#2d2d2d] hover:bg-[#3e3e42] text-[#858585] hover:text-[#f48771] text-xs flex items-center gap-1 transition-colors border border-[#3e3e42]"
+            className="h-7 px-2.5 rounded-xs bg-[#2d2d2d] hover:bg-[#3e3e42] text-[#858585] hover:text-[#f48771] text-xs flex items-center gap-1.5 transition-colors border border-[#3e3e42]"
             title="Clear output console"
           >
             <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline text-[11px]">Clear</span>
           </button>
         </div>
       </div>
@@ -452,7 +468,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
         )}
 
         {/* ================= BOTTOM PANE: TURTLE GRAPHICS CANVAS ================= */}
-        {viewMode === 'console' ? (
+        {viewMode === 'console' && (
           /* Minimized Turtle Strip */
           <div 
             onClick={() => onViewModeChange('both')}
@@ -472,14 +488,15 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
               <ChevronUp className="w-3.5 h-3.5" />
             </div>
           </div>
-        ) : (
-          /* Expanded Turtle View */
-          <div 
-            className={`flex flex-col bg-[#1e1e1e] overflow-hidden ${
-              viewMode === 'turtle' ? 'flex-1' : ''
-            }`}
-            style={viewMode === 'both' ? { height: `${100 - splitRatioY}%` } : undefined}
-          >
+        )}
+
+        {/* Turtle View - Remains mounted to keep turtleTargetId DOM node always accessible */}
+        <div 
+          className={`flex flex-col bg-[#1e1e1e] overflow-hidden ${
+            viewMode === 'turtle' ? 'flex-1' : ''
+          } ${viewMode === 'console' ? 'hidden' : ''}`}
+          style={viewMode === 'both' ? { height: `${100 - splitRatioY}%` } : undefined}
+        >
             {/* Turtle Header & Controls */}
             <div className="h-7 bg-[#252526] px-3 border-b border-[#333333] flex items-center justify-between text-[11px] text-[#cccccc] shrink-0">
               <div className="flex items-center gap-1.5 font-medium">
@@ -492,7 +509,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
                 {/* Fit / 1:1 Zoom Mode Switcher */}
                 <button
                   onClick={() => setZoomMode(zoomMode === 'fit' ? '100' : 'fit')}
-                  className={`px-1.5 py-0.5 rounded-xs text-[10px] font-mono border transition-colors ${
+                  className={`h-5.5 px-1.5 rounded-xs text-[10px] font-mono border flex items-center justify-center transition-colors ${
                     zoomMode === 'fit'
                       ? 'bg-[#1e2e25] border-[#234b35] text-[#4ec9b0]'
                       : 'bg-[#2d2d2d] border-[#3e3e42] text-[#858585] hover:text-[#cccccc]'
@@ -504,7 +521,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
 
                 <button
                   onClick={() => setShowGrid(!showGrid)}
-                  className={`p-1 rounded-xs flex items-center gap-1 text-[10px] border transition-colors ${
+                  className={`h-5.5 px-1.5 rounded-xs flex items-center gap-1 text-[10px] border transition-colors ${
                     showGrid 
                       ? 'bg-[#1e2e25] border-[#234b35] text-[#4ec9b0]' 
                       : 'bg-[#2d2d2d] border-[#3e3e42] text-[#858585] hover:text-[#cccccc]'
@@ -517,7 +534,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
 
                 <button
                   onClick={handleDownloadTurtleCanvas}
-                  className="p-1 rounded-xs bg-[#2d2d2d] hover:bg-[#383838] border border-[#3e3e42] text-[#858585] hover:text-white flex items-center gap-1 text-[10px] transition-colors"
+                  className="h-5.5 px-1.5 rounded-xs bg-[#2d2d2d] hover:bg-[#383838] border border-[#3e3e42] text-[#858585] hover:text-white flex items-center gap-1 text-[10px] transition-colors"
                   title="Export turtle canvas as composite PNG image"
                 >
                   <Download className="w-3 h-3" />
@@ -527,7 +544,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
                 {onResetTurtle && (
                   <button
                     onClick={onResetTurtle}
-                    className="p-1 rounded-xs bg-[#2d2d2d] hover:bg-[#383838] border border-[#3e3e42] text-[#858585] hover:text-white text-[10px] transition-colors"
+                    className="h-5.5 px-1.5 rounded-xs bg-[#2d2d2d] hover:bg-[#383838] border border-[#3e3e42] text-[#858585] hover:text-white flex items-center justify-center text-[10px] transition-colors"
                     title="Cleanly reset turtle canvas and state"
                   >
                     <RotateCcw className="w-3 h-3" />
@@ -541,14 +558,14 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
                   <>
                     <button
                       onClick={() => onViewModeChange('console')}
-                      className="p-1 rounded-xs hover:bg-[#383838] hover:text-[#cccccc] text-[#858585] transition-colors"
+                      className="h-5.5 px-1.5 rounded-xs hover:bg-[#383838] hover:text-[#cccccc] text-[#858585] flex items-center justify-center transition-colors"
                       title="Minimize Turtle (show only Output)"
                     >
                       <Minus className="w-3 h-3" />
                     </button>
                     <button
                       onClick={() => onViewModeChange('turtle')}
-                      className="p-1 rounded-xs hover:bg-[#383838] hover:text-[#cccccc] text-[#858585] transition-colors"
+                      className="h-5.5 px-1.5 rounded-xs hover:bg-[#383838] hover:text-[#cccccc] text-[#858585] flex items-center justify-center transition-colors"
                       title="Maximize Turtle (show only Turtle)"
                     >
                       <Maximize2 className="w-3 h-3" />
@@ -557,7 +574,7 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
                 ) : (
                   <button
                     onClick={() => onViewModeChange('both')}
-                    className="p-1 rounded-xs hover:bg-[#383838] hover:text-[#cccccc] text-[#858585] transition-colors flex items-center gap-1 text-[10px]"
+                    className="h-5.5 px-1.5 rounded-xs hover:bg-[#383838] hover:text-[#cccccc] text-[#858585] transition-colors flex items-center gap-1 text-[10px]"
                     title="Restore stacked view"
                   >
                     <Layers className="w-3 h-3" />
@@ -639,7 +656,6 @@ export const OutputPanel: React.FC<OutputPanelProps> = ({
               </div>
             </div>
           </div>
-        )}
       </div>
     </div>
   );

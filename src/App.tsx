@@ -10,7 +10,7 @@ import {
   saveActiveFileId,
   downloadFile 
 } from './services/storage';
-import { executePythonCode, resetTurtleEnvironment } from './services/pythonRunner';
+import { executePythonCode, resetTurtleEnvironment, stopPythonExecution } from './services/pythonRunner';
 import { 
   FileCode, 
   FileText, 
@@ -21,7 +21,8 @@ import {
   Play, 
   RotateCcw,
   Sparkles,
-  Layers
+  Layers,
+  Square
 } from 'lucide-react';
 
 export default function App() {
@@ -231,8 +232,12 @@ export default function App() {
 
       setExecutionTime(result.executionTimeMs);
 
-      if (!result.success && result.error) {
-        setErrorInfo(result.error);
+      if (!result.success) {
+        if (result.stopped) {
+          setErrorInfo(undefined);
+        } else if (result.error) {
+          setErrorInfo(result.error);
+        }
       } else {
         setOutputs((prev) => [
           ...prev,
@@ -250,6 +255,14 @@ export default function App() {
       setIsRunning(false);
       setInputPrompt(null);
     }
+  };
+
+  // Stop running Python script immediately
+  const handleStopCode = () => {
+    stopPythonExecution();
+    setIsRunning(false);
+    setInputPrompt(null);
+    showToast('Execution stopped');
   };
 
   // One-click quick fix for errors
@@ -286,6 +299,12 @@ export default function App() {
         e.preventDefault();
         saveFilesToStorage(files);
         setIsSaved(true);
+      }
+      if (e.key === 'Escape' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && isRunning)) {
+        if (isRunning) {
+          e.preventDefault();
+          handleStopCode();
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -419,11 +438,11 @@ for i in range(5)
             </button>
           </div>
 
-          {/* Quick Actions in Header */}
+          {/* Quick Actions in Header (Unified h-7 height) */}
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleLoadErrorDemo}
-              className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#2d2d2d] hover:bg-[#37373d] text-[#e3b341] border border-[#3e3e42] text-[11px] font-medium transition-colors"
+              className="hidden sm:flex items-center gap-1.5 px-2.5 h-7 rounded bg-[#2d2d2d] hover:bg-[#37373d] text-[#e3b341] border border-[#3e3e42] text-[11px] font-medium transition-colors"
               title="Load script with intentional error to test suggestions & quick-fix"
             >
               <Sparkles className="w-3 h-3 text-[#e3b341]" />
@@ -434,11 +453,27 @@ for i in range(5)
               id="header-run-btn"
               onClick={handleRunCode}
               disabled={isRunning}
-              className="px-3 py-1 rounded bg-[#0e639c] hover:bg-[#1177bb] text-white font-medium text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95 disabled:opacity-50"
+              className={`px-3 h-7 rounded font-medium text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95 ${
+                isRunning
+                  ? 'bg-[#d29922] text-white opacity-80 cursor-wait'
+                  : 'bg-[#0e639c] hover:bg-[#1177bb] text-white'
+              }`}
             >
               {isRunning ? <RotateCcw className="w-3 h-3 animate-spin" /> : <Play className="w-3 h-3 fill-current" />}
               <span>{isRunning ? 'Running...' : 'Run'}</span>
             </button>
+
+            {isRunning && (
+              <button
+                id="header-stop-btn"
+                onClick={handleStopCode}
+                className="px-3 h-7 rounded bg-[#da3633] hover:bg-[#b62324] text-white font-medium text-xs flex items-center gap-1.5 shadow-xs transition-all active:scale-95 animate-pulse"
+                title="Stop execution (Ctrl+C / Esc)"
+              >
+                <Square className="w-3 h-3 fill-current" />
+                <span>Stop</span>
+              </button>
+            )}
           </div>
         </header>
 
@@ -454,6 +489,7 @@ for i in range(5)
                 file={activeFile}
                 onChange={handleCodeChange}
                 onRun={handleRunCode}
+                onStop={handleStopCode}
                 isRunning={isRunning}
                 errorInfo={errorInfo}
                 onNotify={showToast}
@@ -488,6 +524,7 @@ for i in range(5)
               }}
               onApplyFix={handleApplyFix}
               isRunning={isRunning}
+              onStop={handleStopCode}
               viewMode={viewMode}
               onViewModeChange={setViewMode}
               hasTurtle={hasTurtle}
